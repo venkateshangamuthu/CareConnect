@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donor Dashboard - CareConnect</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 2fr 1fr;
+            }
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-bar input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .orphanage-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 5px;
+        }
+
+        .orphanage-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .orphanage-card h3 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+
+        .orphanage-card img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .orphanage-card .btn-group {
+            margin-top: auto;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .orphanage-card .btn-group .btn {
+            flex: 1;
+            text-align: center;
+            font-size: 0.9em;
+            padding: 8px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <nav>
+                <a href="index.html" class="logo">CareConnect</a>
+                <ul class="nav-links" id="nav-links"></ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container mt-2 mb-2">
+        <h1 id="welcome-msg">Welcome, Donor</h1>
+
+        <div class="dashboard-grid mt-2">
+            <!-- Left Column: Orphanages -->
+            <div>
+                <h2>Find Orphanages</h2>
+                <div class="search-bar">
+                    <input type="text" id="search-input" placeholder="Search by location or name...">
+                    <button class="btn btn-primary" onclick="searchOrphanages()">Search</button>
+                </div>
+
+                <div class="orphanage-grid" id="orphanage-list">
+                    <!-- Cards populated via JS -->
+                </div>
+            </div>
+
+            <!-- Right Column: History & Events -->
+            <div>
+                <div class="card mb-2">
+                    <h2>Your Scheduled Events</h2>
+                    <div style="overflow-x: auto;">
+                        <table id="bookings-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Orphanage</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="4" class="text-center">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Donation History</h2>
+                    <div style="overflow-x: auto;">
+                        <table id="donations-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Orphanage</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="4" class="text-center">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking Modal -->
+    <div id="booking-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('booking-modal')">&times;</span>
+            <h2 id="booking-title">Book Event</h2>
+            <form id="booking-form" onsubmit="submitBooking(event)">
+                <input type="hidden" id="book-orphanage-id">
+                <div class="form-group">
+                    <label>Event Date</label>
+                    <input type="date" id="book-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Event Type</label>
+                    <select id="book-type" required>
+                        <option value="Birthday">Birthday</option>
+                        <option value="Anniversary">Anniversary</option>
+                        <option value="Festival">Festival Celebration</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Requirements</label>
+                    <textarea id="book-req" rows="3" placeholder="Cake, food, clothes, etc." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Advance Amount (₹)</label>
+                    <input type="number" id="book-amt" min="100" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%">Pay Advance & Book</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Donation Modal -->
+    <div id="donate-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('donate-modal')">&times;</span>
+            <h2 id="donate-title">Donate Money</h2>
+            <form id="donate-form" onsubmit="submitDonation(event)">
+                <input type="hidden" id="donate-orphanage-id">
+                <div class="form-group">
+                    <label>Donation Amount (₹)</label>
+                    <input type="number" id="donate-amt" min="10" required>
+                </div>
+                <div
+                    style="background: #f9f9f9; padding: 10px; border: 1px dashed #ccc; margin-bottom: 15px; text-align: center;">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/8/89/Razorpay_logo.svg" alt="Razorpay"
+                        style="height: 30px;">
+                    <p style="margin:5px 0 0 0; font-size: 0.9em; color: #666;">Secured by Razorpay</p>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%">Proceed to Pay</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+        // Auth Check
+        if (!State.isLoggedIn() || State.user.role !== 'DONOR') {
+            window.location.href = 'login.html';
+        }
+
+        document.getElementById('welcome-msg').textContent = `Welcome, ${State.user.username}`;
+        const API_BASE = 'http://localhost:8080';
+
+        async function loadDashboard() {
+            try {
+                // Load Orphanages
+                const orphanages = await api.get('/orphanages/public/list');
+                renderOrphanages(orphanages);
+
+                // Load Donations
+                const donations = await api.get(`/donations/user/${State.user.userId}`);
+                const dTable = document.getElementById('donations-table').querySelector('tbody');
+                if (donations.length === 0) dTable.innerHTML = '<tr><td colspan="4" class="text-center">No donations yet.</td></tr>';
+                else dTable.innerHTML = donations.map(d => `<tr><td>${new Date(d.date).toLocaleDateString()}</td><td>${d.orphanageName}</td><td>₹${d.amount}</td><td><span style="color:var(--success)">${d.status}</span></td></tr>`).join('');
+
+                // Load Bookings
+                const bookings = await api.get(`/bookings/user/${State.user.userId}`);
+                const bTable = document.getElementById('bookings-table').querySelector('tbody');
+                if (bookings.length === 0) bTable.innerHTML = '<tr><td colspan="4" class="text-center">No bookings yet.</td></tr>';
+                else bTable.innerHTML = bookings.map(b => `<tr><td>${b.eventDate}</td><td>${b.orphanageName}</td><td>${b.eventType}</td><td><span style="color:${b.status === 'CONFIRMED' ? 'green' : 'orange'}">${b.status}</span></td></tr>`).join('');
+
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        function renderOrphanages(list) {
+            const container = document.getElementById('orphanage-list');
+            if (list.length === 0) {
+                container.innerHTML = '<p>No orphanages found.</p>';
+                return;
+            }
+            container.innerHTML = list.map(o => {
+                const img = o.imageUrl ? (o.imageUrl.startsWith('data:') || o.imageUrl.startsWith('http') ? o.imageUrl : API_BASE + o.imageUrl) : 'https://via.placeholder.com/300x150';
+                return `
+                <div class="orphanage-card">
+                    <img src="${img}" alt="${o.name}">
+                    <h3>${o.name}</h3>
+                    <p style="font-size:0.9em; color:#555;">📍 ${o.location}</p>
+                    <p style="font-size:0.9em; flex: 1;">${o.description ? o.description.substring(0, 60) + '...' : 'Supporting children.'}</p>
+                    <div class="btn-group">
+                        <button class="btn btn-outline" onclick="openDonateModal(${o.id}, '${o.name}')">Donate</button>
+                        <button class="btn btn-primary" onclick="openBookingModal(${o.id}, '${o.name}')">Book Event</button>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        async function searchOrphanages() {
+            const query = document.getElementById('search-input').value;
+            if (!query) {
+                loadDashboard();
+                return;
+            }
+            try {
+                const list = await api.get(`/orphanages/public/search?query=${encodeURIComponent(query)}`);
+                renderOrphanages(list);
+            } catch (e) {
+                showToast('Search failed', 'error');
+            }
+        }
+
+        // Modals
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        function openDonateModal(orgId, name) {
+            document.getElementById('donate-orphanage-id').value = orgId;
+            document.getElementById('donate-title').textContent = `Donate to ${name}`;
+            document.getElementById('donate-modal').style.display = 'flex';
+        }
+
+        function openBookingModal(orgId, name) {
+            document.getElementById('book-orphanage-id').value = orgId;
+            document.getElementById('booking-title').textContent = `Book Event at ${name}`;
+            document.getElementById('booking-modal').style.display = 'flex';
+        }
+
+        // Razorpay Mock Simulation
+        async function submitDonation(e) {
+            e.preventDefault();
+            const amt = document.getElementById('donate-amt').value;
+            const orgId = document.getElementById('donate-orphanage-id').value;
+
+            // Mock Razorpay Payment
+            showToast('Initializing Razorpay gateway...', 'info');
+            setTimeout(async () => {
+                const txId = 'TXT_' + Math.random().toString(36).substr(2, 9).toUpperCase();
+                try {
+                    await api.post('/donations', {
+                        userId: State.user.userId,
+                        orphanageId: parseInt(orgId),
+                        amount: parseFloat(amt),
+                        transactionId: txId,
+                        status: 'SUCCESS'
+                    });
+                    showToast('Payment Successful!', 'success');
+                    closeModal('donate-modal');
+                    loadDashboard();
+                } catch (err) { showToast('Backend error', 'error'); }
+            }, 1000);
+        }
+
+        async function submitBooking(e) {
+            e.preventDefault();
+            const orgId = document.getElementById('book-orphanage-id').value;
+            // Mock Payment for Advance
+            showToast('Processing advance payment...', 'info');
+            setTimeout(async () => {
+                try {
+                    await api.post('/bookings', {
+                        userId: State.user.userId,
+                        orphanageId: parseInt(orgId),
+                        eventDate: document.getElementById('book-date').value,
+                        eventType: document.getElementById('book-type').value,
+                        requirements: document.getElementById('book-req').value,
+                        advanceAmount: parseFloat(document.getElementById('book-amt').value)
+                    });
+                    showToast('Event booked successfully!', 'success');
+                    closeModal('booking-modal');
+                    loadDashboard();
+                } catch (err) { showToast('Booking failed', 'error'); }
+            }, 1000);
+        }
+
+        loadDashboard();
+    </script>
+    <script src="js/chatbot.js"></script>
+</body>
+
+</html>

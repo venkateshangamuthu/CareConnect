@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donor Profile - CareConnect</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .profile-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .profile-photo-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .profile-photo {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--primary);
+            margin-bottom: 15px;
+            background-color: #eee;
+        }
+
+        .file-upload-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-upload-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <nav>
+                <a href="index.html" class="logo">CareConnect</a>
+                <ul class="nav-links" id="nav-links"></ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container mt-2">
+        <div class="profile-container mt-2 mb-2">
+            <h1 class="text-center">My Profile</h1>
+
+            <div class="profile-photo-wrapper">
+                <img id="profile-preview" class="profile-photo" src="https://via.placeholder.com/150"
+                    alt="Profile Photo">
+                <div class="file-upload-wrapper">
+                    <button class="btn btn-outline">Change Photo</button>
+                    <input type="file" id="photo-upload" accept="image/*">
+                </div>
+                <small id="upload-status" class="text-center mt-1" style="display:block; color: gray;"></small>
+            </div>
+
+            <form id="profile-form">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="name" required>
+                </div>
+                <div class="form-group">
+                    <label>Email (Read Only)</label>
+                    <input type="email" id="email" disabled>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="tel" id="phone">
+                </div>
+                <div class="form-group">
+                    <label>City / Location</label>
+                    <input type="text" id="location" placeholder="e.g. Mumbai, Maharashtra">
+                </div>
+                <div class="form-group">
+                    <label>Preferred Donation Type</label>
+                    <select id="donation-type">
+                        <option value="">-- Select --</option>
+                        <option value="Money">Money</option>
+                        <option value="Food">Food</option>
+                        <option value="Clothes">Clothes</option>
+                        <option value="Books">Books</option>
+                        <option value="Toys">Toys</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%">Save Profile</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        // Auth Check
+        if (!State.isLoggedIn() || State.user.role !== 'DONOR') {
+            window.location.href = 'login.html';
+        }
+
+        const API_BASE = 'http://localhost:8080';
+
+        async function loadProfile() {
+            try {
+                const userProfile = await api.get(`/users/${State.user.userId}`);
+
+                document.getElementById('name').value = userProfile.name || '';
+                document.getElementById('email').value = userProfile.email || '';
+                document.getElementById('phone').value = userProfile.phone || '';
+                document.getElementById('location').value = userProfile.location || '';
+                document.getElementById('donation-type').value = userProfile.preferredDonationType || '';
+
+                if (userProfile.profilePhoto) {
+                    document.getElementById('profile-preview').src = API_BASE + userProfile.profilePhoto;
+                }
+            } catch (err) {
+                showToast('Failed to load profile', 'error');
+            }
+        }
+
+        document.getElementById('photo-upload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Preview local image immediately
+            document.getElementById('profile-preview').src = URL.createObjectURL(file);
+            document.getElementById('upload-status').textContent = 'Uploading...';
+
+            try {
+                const res = await api.uploadFile(`/users/${State.user.userId}/profile-picture`, file);
+                document.getElementById('upload-status').textContent = 'Photo uploaded successfully!';
+                document.getElementById('upload-status').style.color = 'var(--success)';
+            } catch (err) {
+                document.getElementById('upload-status').textContent = 'Upload failed.';
+                document.getElementById('upload-status').style.color = 'var(--danger)';
+                showToast('Image upload failed', 'error');
+            }
+        });
+
+        document.getElementById('profile-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('name').value,
+                phone: document.getElementById('phone').value,
+                location: document.getElementById('location').value,
+                preferredDonationType: document.getElementById('donation-type').value
+            };
+
+            try {
+                await api.put(`/users/${State.user.userId}`, data);
+                showToast('Profile updated successfully!', 'success');
+
+                // Update local storage user name if it changed
+                State.user.username = data.name;
+                localStorage.setItem('user', JSON.stringify(State.user));
+            } catch (err) {
+                showToast('Failed to update profile', 'error');
+            }
+        });
+
+        loadProfile();
+    </script>
+    <script src="js/chatbot.js"></script>
+</body>
+
+</html>

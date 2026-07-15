@@ -1,0 +1,7 @@
+com\careconnect\backend\repository\ExpenseRepository.class
+com\careconnect\backend\dto\ExpenseDto.class
+com\careconnect\backend\dto\FinancialStatsDto.class
+com\careconnect\backend\model\Expense.class
+com\careconnect\backend\service\ExpenseService.class
+com\careconnect\backend\controller\ExpenseController.class
+com\careconnect\backend\service\FinancialService.class
